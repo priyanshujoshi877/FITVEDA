@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zoom Meeting</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: system-ui, sans-serif; }
+    #zmmtg-root { width: 100%; height: 100%; }
+    .status { color: rgba(255,255,255,0.5); font-size: 14px; display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 20px; }
+    .status.error { color: #f87171; }
+  </style>
+  <!-- React 18 (what Zoom SDK requires) — isolated in this iframe -->
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <!-- Zoom Meeting SDK (UMD embedded build) -->
+  <script src="https://cdn.jsdelivr.net/npm/@zoom/meetingsdk@5.1.2/dist/zoomus-websdk-embedded.umd.min.js"></script>
+</head>
+<body>
+  <div id="zmmtg-root">
+    <div class="status" id="statusMsg">Loading Zoom SDK…</div>
+  </div>
+
+  <script>
+    /**
+     * Standalone Zoom Meeting page running React 18 in an iframe.
+     * Completely isolated from the parent app's React 19.
+     *
+     * Parent sends:  { type: "join", sdkKey, signature, meetingNumber, password, userName }
+     * This sends:    { type: "zoom-status", state: "ready"|"joining"|"joined"|"error", error?: string }
+     */
+
+    var statusEl = document.getElementById("statusMsg");
+    var client = null;
+
+    function setStatus(text, isError) {
+      if (statusEl) {
+        statusEl.textContent = text;
+        statusEl.className = isError ? "status error" : "status";
+      }
+    }
+
+    // The UMD build registers as window.ReactWidgets when loaded via script tag
+    var ZoomSDK = window.ReactWidgets || window.ZoomMtgEmbedded;
+
+    // Check if SDK loaded
+    if (ZoomSDK && typeof ZoomSDK.createClient === "function") {
+      setStatus("Ready to join a meeting.");
+      window.parent.postMessage({ type: "zoom-status", state: "ready" }, "*");
+    } else {
+      // Log all window keys that might be the SDK for debugging
+      console.log("Available globals:", Object.keys(window).filter(function(k) { return k.includes("Zoom") || k.includes("React") || k.includes("Widget"); }));
+      setStatus("Failed to load Zoom SDK.", true);
+      window.parent.postMessage({ type: "zoom-status", state: "error", error: "SDK script failed to load" }, "*");
+    }
+
+    // Listen for join command from parent
+    window.addEventListener("message", async function(event) {
+      if (!event.data || event.data.type !== "join") return;
+
+      var sdkKey = event.data.sdkKey;
+      var signature = event.data.signature;
+      var meetingNumber = event.data.meetingNumber;
+      var password = event.data.password;
+      var userName = event.data.userName;
+
+      // Re-check in case it loaded late
+      ZoomSDK = window.ReactWidgets || window.ZoomMtgEmbedded;
+
+      try {
+        setStatus("Initializing…");
+        window.parent.postMessage({ type: "zoom-status", state: "joining" }, "*");
+
+        client = ZoomSDK.createClient();
+
+        await client.init({
+          zoomAppRoot: document.getElementById("zmmtg-root"),
+          language: "en-US",
+          patchJsMedia: true,
+          leaveOnPageUnload: true,
+        });
+
+        setStatus("Joining meeting…");
+
+        await client.join({
+          sdkKey: sdkKey,
+          signature: signature,
+          meetingNumber: String(meetingNumber).replace(/\s/g, ""),
+          password: password || "",
+          userName: userName || "JiggleWiggle",
+        });
+
+        if (statusEl) statusEl.style.display = "none";
+        window.parent.postMessage({ type: "zoom-status", state: "joined" }, "*");
+      } catch (err) {
+        var msg = err instanceof Error ? err.message : String(err);
+        setStatus("Error: " + msg, true);
+        window.parent.postMessage({ type: "zoom-status", state: "error", error: msg }, "*");
+      }
+    });
+  </script>
+</body>
+</html>

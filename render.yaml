@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: jiggle-wiggle
+    runtime: docker
+    region: oregon
+    plan: standard
+    numInstances: 1
+    branch: main
+    autoDeploy: true
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: MODAL_ENDPOINT_URL
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: BRIGHTDATA_API_TOKEN
+        sync: false
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ZOOM_SDK_KEY
+        sync: false
+      - key: ZOOM_SDK_SECRET
+        sync: false

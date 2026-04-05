@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "FITVEDA",
+  "version": "1.0.0",
+  "description": "Open any YouTube video in FITVEDA to learn dance moves with AI coaching",
+  "permissions": ["activeTab", "tabs"],
+  "action": {
+    "default_title": "FITVEDA",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}
